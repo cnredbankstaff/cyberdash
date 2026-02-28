@@ -1,0 +1,1032 @@
+<!doctype html>
+<html lang="en" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cyber Rush</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+    
+    html, body { height: 100%; margin: 0; overflow: hidden; }
+    
+    * { font-family: 'Orbitron', sans-serif; }
+    
+    .game-canvas {
+      background: linear-gradient(180deg, #0a0a1a 0%, #1a1a3a 50%, #2a1a4a 100%);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .player {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      transition: transform 0.05s ease-out;
+      z-index: 100;
+    }
+    
+    .player-body {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #00d4ff 0%, #0066ff 50%, #0033aa 100%);
+      border-radius: 50% 50% 45% 45%;
+      box-shadow: 0 0 20px #00d4ff, 0 0 40px #0066ff;
+      position: relative;
+    }
+    
+    .player-body::before {
+      content: '';
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      width: 10px;
+      height: 10px;
+      background: #fff;
+      border-radius: 50%;
+      box-shadow: 14px 0 0 #fff;
+    }
+    
+    .player-body::after {
+      content: '';
+      position: absolute;
+      bottom: -5px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 30px;
+      height: 15px;
+      background: linear-gradient(to bottom, #ff6600, #ff3300);
+      border-radius: 0 0 50% 50%;
+      opacity: 0;
+      transition: opacity 0.1s;
+    }
+    
+    .player.boosting .player-body::after {
+      opacity: 1;
+      animation: flame 0.1s infinite alternate;
+    }
+    
+    .player.spinning {
+      animation: spin 0.3s linear infinite;
+    }
+    
+    .player.spinning .player-body {
+      border-radius: 50%;
+      background: linear-gradient(135deg, #00d4ff, #0066ff, #00d4ff, #0066ff);
+    }
+    
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    
+    @keyframes flame {
+      from { height: 15px; }
+      to { height: 25px; }
+    }
+    
+    .ring {
+      position: absolute;
+      width: 25px;
+      height: 25px;
+      animation: float 2s ease-in-out infinite, sparkle 0.5s ease-in-out infinite alternate;
+    }
+    
+    .ring svg {
+      width: 100%;
+      height: 100%;
+      filter: drop-shadow(0 0 8px #ffd700);
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+    
+    @keyframes sparkle {
+      from { filter: drop-shadow(0 0 8px #ffd700); }
+      to { filter: drop-shadow(0 0 15px #ffea00); }
+    }
+    
+    .enemy {
+      position: absolute;
+      width: 50px;
+      height: 50px;
+    }
+    
+    .enemy-body {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #ff0066 0%, #aa0044 100%);
+      clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%);
+      box-shadow: 0 0 15px #ff0066;
+      animation: pulse-enemy 1s ease-in-out infinite;
+    }
+    
+    .enemy-eye {
+      position: absolute;
+      top: 40%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 15px;
+      height: 15px;
+      background: #fff;
+      border-radius: 50%;
+      box-shadow: 0 0 10px #ff0066;
+    }
+    
+    .enemy-eye::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 8px;
+      height: 8px;
+      background: #ff0066;
+      border-radius: 50%;
+    }
+    
+    @keyframes pulse-enemy {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+    
+    .platform {
+      position: absolute;
+      background: linear-gradient(180deg, #3a3a6a 0%, #2a2a4a 100%);
+      border: 2px solid #00d4ff;
+      box-shadow: 0 0 10px #00d4ff, inset 0 -5px 15px rgba(0,0,0,0.5);
+    }
+    
+    .spring {
+      position: absolute;
+      width: 40px;
+      height: 30px;
+    }
+    
+    .spring-body {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(180deg, #ff6600 0%, #ff3300 100%);
+      border-radius: 5px 5px 0 0;
+      box-shadow: 0 0 10px #ff6600;
+    }
+    
+    .spring-coil {
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 30px;
+      height: 15px;
+      background: repeating-linear-gradient(
+        0deg,
+        #888 0px,
+        #888 2px,
+        #666 2px,
+        #666 4px
+      );
+      border-radius: 0 0 5px 5px;
+    }
+    
+    .boost-pad {
+      position: absolute;
+      width: 60px;
+      height: 20px;
+      background: linear-gradient(90deg, #00ff88 0%, #00ffcc 50%, #00ff88 100%);
+      border-radius: 10px;
+      box-shadow: 0 0 15px #00ff88;
+      animation: boost-glow 0.5s ease-in-out infinite alternate;
+    }
+    
+    .boost-pad::after {
+      content: '>>>';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #004422;
+      font-weight: bold;
+      font-size: 12px;
+    }
+    
+    @keyframes boost-glow {
+      from { box-shadow: 0 0 15px #00ff88; }
+      to { box-shadow: 0 0 30px #00ffcc; }
+    }
+    
+    .cyber-line {
+      position: absolute;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #00d4ff, transparent);
+      opacity: 0.5;
+    }
+    
+    .grid-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image: 
+        linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+      background-size: 50px 50px;
+      pointer-events: none;
+    }
+    
+    .particle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: #00d4ff;
+      border-radius: 50%;
+      pointer-events: none;
+      animation: particle-fade 0.5s ease-out forwards;
+    }
+    
+    @keyframes particle-fade {
+      from { opacity: 1; transform: scale(1); }
+      to { opacity: 0; transform: scale(0); }
+    }
+    
+    .hud {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: 15px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      z-index: 200;
+      pointer-events: none;
+    }
+    
+    .hud-panel {
+      background: rgba(0,0,0,0.7);
+      border: 1px solid #00d4ff;
+      border-radius: 10px;
+      padding: 10px 15px;
+      box-shadow: 0 0 20px rgba(0,212,255,0.3);
+    }
+    
+    .ring-count {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #ffd700;
+      font-size: 24px;
+      font-weight: bold;
+      text-shadow: 0 0 10px #ffd700;
+    }
+    
+    .score {
+      color: #00d4ff;
+      font-size: 18px;
+      font-weight: bold;
+      text-shadow: 0 0 10px #00d4ff;
+    }
+    
+    .boost-meter {
+      width: 150px;
+      height: 15px;
+      background: rgba(0,0,0,0.5);
+      border: 1px solid #00ff88;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-top: 5px;
+    }
+    
+    .boost-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #00ff88, #00ffcc);
+      transition: width 0.1s;
+      box-shadow: 0 0 10px #00ff88;
+    }
+    
+    .game-over-screen, .start-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.9);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 300;
+      gap: 20px;
+    }
+    
+    .game-title {
+      font-size: 48px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #00d4ff, #0066ff, #ff0066);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-shadow: none;
+      filter: drop-shadow(0 0 20px rgba(0,212,255,0.5));
+      animation: title-pulse 2s ease-in-out infinite;
+    }
+    
+    @keyframes title-pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+    
+    .subtitle {
+      color: #888;
+      font-size: 16px;
+      margin-bottom: 20px;
+    }
+    
+    .start-btn {
+      background: linear-gradient(135deg, #00d4ff 0%, #0066ff 100%);
+      color: #fff;
+      border: none;
+      padding: 15px 40px;
+      font-size: 20px;
+      font-weight: bold;
+      border-radius: 30px;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 0 20px #00d4ff;
+      pointer-events: auto;
+    }
+    
+    .start-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 0 40px #00d4ff;
+    }
+    
+    .controls-info {
+      color: #666;
+      font-size: 14px;
+      text-align: center;
+      line-height: 1.8;
+    }
+    
+    .controls-info span {
+      color: #00d4ff;
+      font-weight: bold;
+    }
+    
+    .final-score {
+      color: #ffd700;
+      font-size: 32px;
+      font-weight: bold;
+      text-shadow: 0 0 20px #ffd700;
+    }
+    
+    .combo-display {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 36px;
+      font-weight: 900;
+      color: #ff0066;
+      text-shadow: 0 0 20px #ff0066;
+      opacity: 0;
+      transition: all 0.3s;
+      z-index: 150;
+      pointer-events: none;
+    }
+    
+    .combo-display.active {
+      opacity: 1;
+      animation: combo-pop 0.5s ease-out;
+    }
+    
+    @keyframes combo-pop {
+      0% { transform: translate(-50%, -50%) scale(0.5); }
+      50% { transform: translate(-50%, -50%) scale(1.3); }
+      100% { transform: translate(-50%, -50%) scale(1); }
+    }
+    
+    .speed-lines {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    
+    .speed-lines.active {
+      opacity: 1;
+    }
+    
+    .speed-line {
+      position: absolute;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, rgba(0,212,255,0.8), transparent);
+      animation: speed-streak 0.3s linear infinite;
+    }
+    
+    @keyframes speed-streak {
+      from { transform: translateX(100%); }
+      to { transform: translateX(-100%); }
+    }
+  </style>
+  <style>body { box-sizing: border-box; }</style>
+  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
+ </head>
+ <body class="h-full">
+  <div id="game-container" class="game-canvas w-full h-full">
+   <div class="grid-overlay"></div><!-- Speed lines effect -->
+   <div class="speed-lines" id="speedLines">
+    <div class="speed-line" style="top: 20%; width: 200px;"></div>
+    <div class="speed-line" style="top: 35%; width: 150px; animation-delay: 0.1s;"></div>
+    <div class="speed-line" style="top: 50%; width: 180px; animation-delay: 0.05s;"></div>
+    <div class="speed-line" style="top: 65%; width: 160px; animation-delay: 0.15s;"></div>
+    <div class="speed-line" style="top: 80%; width: 190px; animation-delay: 0.08s;"></div>
+   </div><!-- HUD -->
+   <div class="hud">
+    <div class="hud-panel">
+     <div class="ring-count">
+      <svg width="24" height="24" viewbox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="#ffd700" stroke-width="3" /> <circle cx="12" cy="12" r="5" fill="#ffd700" />
+      </svg><span id="ringCount">0</span>
+     </div>
+     <div class="score">
+      SCORE: <span id="scoreDisplay">0</span>
+     </div>
+    </div>
+    <div class="hud-panel">
+     <div style="color: #00ff88; font-size: 12px; margin-bottom: 5px;">
+      BOOST
+     </div>
+     <div class="boost-meter">
+      <div class="boost-fill" id="boostFill" style="width: 100%;"></div>
+     </div>
+    </div>
+   </div><!-- Combo Display -->
+   <div class="combo-display" id="comboDisplay"></div><!-- Player -->
+   <div class="player" id="player">
+    <div class="player-body"></div>
+   </div><!-- Game elements container -->
+   <div id="gameElements"></div><!-- Start Screen -->
+   <div class="start-screen" id="startScreen">
+    <h1 class="game-title" id="gameTitle">CYBER RUSH</h1>
+    <p class="subtitle">Open-World Cyber Adventure</p><button class="start-btn" id="startBtn">START GAME</button>
+    <div class="controls-info"><span>←↑↓→</span> Move<br><span>SPACE</span> Jump / Attack<br><span>SHIFT</span> Boost<br><span>Z</span> Spin Dash
+    </div>
+   </div><!-- Game Over Screen -->
+   <div class="game-over-screen" id="gameOverScreen" style="display: none;">
+    <h1 class="game-title">GAME OVER</h1>
+    <div class="final-score">
+     SCORE: <span id="finalScore">0</span>
+    </div>
+    <div style="color: #ffd700; font-size: 20px;">
+     RINGS: <span id="finalRings">0</span>
+    </div><button class="start-btn" id="restartBtn">PLAY AGAIN</button>
+   </div>
+  </div>
+  <script>
+    // Config
+    const defaultConfig = {
+      game_title: 'CYBER RUSH',
+      background_color: '#0a0a1a',
+      accent_color: '#00d4ff',
+      player_color: '#00d4ff',
+      text_color: '#ffffff',
+      ring_color: '#ffd700'
+    };
+    
+    let config = { ...defaultConfig };
+    
+    // Element SDK integration
+    if (window.elementSdk) {
+      window.elementSdk.init({
+        defaultConfig,
+        onConfigChange: async (newConfig) => {
+          config = { ...defaultConfig, ...newConfig };
+          applyConfig();
+        },
+        mapToCapabilities: (cfg) => ({
+          recolorables: [
+            {
+              get: () => cfg.background_color || defaultConfig.background_color,
+              set: (v) => window.elementSdk.setConfig({ background_color: v })
+            },
+            {
+              get: () => cfg.accent_color || defaultConfig.accent_color,
+              set: (v) => window.elementSdk.setConfig({ accent_color: v })
+            },
+            {
+              get: () => cfg.player_color || defaultConfig.player_color,
+              set: (v) => window.elementSdk.setConfig({ player_color: v })
+            },
+            {
+              get: () => cfg.text_color || defaultConfig.text_color,
+              set: (v) => window.elementSdk.setConfig({ text_color: v })
+            },
+            {
+              get: () => cfg.ring_color || defaultConfig.ring_color,
+              set: (v) => window.elementSdk.setConfig({ ring_color: v })
+            }
+          ],
+          borderables: [],
+          fontEditable: undefined,
+          fontSizeable: undefined
+        }),
+        mapToEditPanelValues: (cfg) => new Map([
+          ['game_title', cfg.game_title || defaultConfig.game_title]
+        ])
+      });
+    }
+    
+    function applyConfig() {
+      const title = document.getElementById('gameTitle');
+      if (title) title.textContent = config.game_title || defaultConfig.game_title;
+      
+      const container = document.getElementById('game-container');
+      if (container) {
+        container.style.background = `linear-gradient(180deg, ${config.background_color} 0%, ${adjustColor(config.background_color, 20)} 50%, ${adjustColor(config.background_color, 40)} 100%)`;
+      }
+    }
+    
+    function adjustColor(hex, amount) {
+      const num = parseInt(hex.replace('#', ''), 16);
+      const r = Math.min(255, ((num >> 16) & 0xff) + amount);
+      const g = Math.min(255, ((num >> 8) & 0xff) + amount);
+      const b = Math.min(255, (num & 0xff) + amount);
+      return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
+    }
+    
+    // Game State
+    const game = {
+      running: false,
+      player: {
+        x: 100,
+        y: 300,
+        vx: 0,
+        vy: 0,
+        onGround: false,
+        boosting: false,
+        spinning: false,
+        spinCharge: 0,
+        facing: 1
+      },
+      camera: { x: 0, y: 0 },
+      rings: 0,
+      score: 0,
+      boost: 100,
+      combo: 0,
+      comboTimer: 0,
+      keys: {},
+      elements: {
+        platforms: [],
+        rings: [],
+        enemies: [],
+        springs: [],
+        boostPads: []
+      }
+    };
+    
+    const GRAVITY = 0.6;
+    const MOVE_SPEED = 5;
+    const BOOST_SPEED = 12;
+    const JUMP_FORCE = 14;
+    const MAX_FALL_SPEED = 15;
+    const FRICTION = 0.85;
+    const AIR_FRICTION = 0.98;
+    
+    // DOM Elements
+    const container = document.getElementById('game-container');
+    const playerEl = document.getElementById('player');
+    const elementsContainer = document.getElementById('gameElements');
+    const startScreen = document.getElementById('startScreen');
+    const gameOverScreen = document.getElementById('gameOverScreen');
+    const comboDisplay = document.getElementById('comboDisplay');
+    const speedLines = document.getElementById('speedLines');
+    
+    // Generate level
+    function generateLevel() {
+      game.elements = {
+        platforms: [],
+        rings: [],
+        enemies: [],
+        springs: [],
+        boostPads: []
+      };
+      
+      // Ground platforms
+      for (let i = 0; i < 50; i++) {
+        const gapChance = Math.random();
+        if (gapChance > 0.15) {
+          game.elements.platforms.push({
+            x: i * 200,
+            y: 450,
+            width: 200,
+            height: 50
+          });
+        }
+      }
+      
+      // Floating platforms
+      for (let i = 0; i < 80; i++) {
+        game.elements.platforms.push({
+          x: 300 + i * 250 + Math.random() * 100,
+          y: 200 + Math.random() * 200,
+          width: 100 + Math.random() * 100,
+          height: 20
+        });
+      }
+      
+      // Rings
+      for (let i = 0; i < 200; i++) {
+        game.elements.rings.push({
+          x: 200 + i * 100 + Math.random() * 50,
+          y: 150 + Math.random() * 250,
+          collected: false
+        });
+      }
+      
+      // Enemies
+      for (let i = 0; i < 40; i++) {
+        game.elements.enemies.push({
+          x: 500 + i * 400,
+          y: 350 + Math.random() * 50,
+          alive: true,
+          vx: (Math.random() > 0.5 ? 1 : -1) * 2
+        });
+      }
+      
+      // Springs
+      for (let i = 0; i < 25; i++) {
+        game.elements.springs.push({
+          x: 400 + i * 600,
+          y: 420
+        });
+      }
+      
+      // Boost pads
+      for (let i = 0; i < 20; i++) {
+        game.elements.boostPads.push({
+          x: 600 + i * 800,
+          y: 430
+        });
+      }
+      
+      renderElements();
+    }
+    
+    function renderElements() {
+      elementsContainer.innerHTML = '';
+      
+      // Platforms
+      game.elements.platforms.forEach((p, i) => {
+        const el = document.createElement('div');
+        el.className = 'platform';
+        el.id = `platform-${i}`;
+        el.style.cssText = `left:${p.x}px;top:${p.y}px;width:${p.width}px;height:${p.height}px;`;
+        elementsContainer.appendChild(el);
+      });
+      
+      // Rings
+      game.elements.rings.forEach((r, i) => {
+        const el = document.createElement('div');
+        el.className = 'ring';
+        el.id = `ring-${i}`;
+        el.innerHTML = `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="${config.ring_color || '#ffd700'}" stroke-width="3"/><circle cx="12" cy="12" r="4" fill="${config.ring_color || '#ffd700'}"/></svg>`;
+        el.style.cssText = `left:${r.x}px;top:${r.y}px;`;
+        elementsContainer.appendChild(el);
+      });
+      
+      // Enemies
+      game.elements.enemies.forEach((e, i) => {
+        const el = document.createElement('div');
+        el.className = 'enemy';
+        el.id = `enemy-${i}`;
+        el.innerHTML = '<div class="enemy-body"><div class="enemy-eye"></div></div>';
+        el.style.cssText = `left:${e.x}px;top:${e.y}px;`;
+        elementsContainer.appendChild(el);
+      });
+      
+      // Springs
+      game.elements.springs.forEach((s, i) => {
+        const el = document.createElement('div');
+        el.className = 'spring';
+        el.id = `spring-${i}`;
+        el.innerHTML = '<div class="spring-body"></div><div class="spring-coil"></div>';
+        el.style.cssText = `left:${s.x}px;top:${s.y}px;`;
+        elementsContainer.appendChild(el);
+      });
+      
+      // Boost pads
+      game.elements.boostPads.forEach((b, i) => {
+        const el = document.createElement('div');
+        el.className = 'boost-pad';
+        el.id = `boost-${i}`;
+        el.style.cssText = `left:${b.x}px;top:${b.y}px;`;
+        elementsContainer.appendChild(el);
+      });
+    }
+    
+    function updateCamera() {
+      const targetX = game.player.x - container.clientWidth / 3;
+      const targetY = game.player.y - container.clientHeight / 2;
+      
+      game.camera.x += (targetX - game.camera.x) * 0.1;
+      game.camera.y += (targetY - game.camera.y) * 0.05;
+      
+      game.camera.y = Math.max(0, Math.min(100, game.camera.y));
+      
+      elementsContainer.style.transform = `translate(${-game.camera.x}px, ${-game.camera.y}px)`;
+    }
+    
+    function updatePlayer() {
+      const p = game.player;
+      
+      // Horizontal movement
+      if (game.keys['ArrowLeft']) {
+        p.vx -= p.boosting ? BOOST_SPEED * 0.3 : MOVE_SPEED * 0.3;
+        p.facing = -1;
+      }
+      if (game.keys['ArrowRight']) {
+        p.vx += p.boosting ? BOOST_SPEED * 0.3 : MOVE_SPEED * 0.3;
+        p.facing = 1;
+      }
+      
+      // Boost
+      if (game.keys['Shift'] && game.boost > 0) {
+        p.boosting = true;
+        game.boost = Math.max(0, game.boost - 0.5);
+      } else {
+        p.boosting = false;
+        if (p.onGround) game.boost = Math.min(100, game.boost + 0.3);
+      }
+      
+      // Spin dash
+      if (game.keys['KeyZ'] && p.onGround) {
+        p.spinning = true;
+        p.spinCharge = Math.min(20, p.spinCharge + 1);
+      } else if (p.spinning && !game.keys['KeyZ'] && p.onGround) {
+        p.vx = p.spinCharge * p.facing;
+        p.spinCharge = 0;
+        p.spinning = false;
+      }
+      
+      // Jump
+      if (game.keys['Space'] && p.onGround) {
+        p.vy = -JUMP_FORCE;
+        p.onGround = false;
+        p.spinning = true;
+      }
+      
+      // Speed cap
+      const maxSpeed = p.boosting ? BOOST_SPEED : 8;
+      p.vx = Math.max(-maxSpeed, Math.min(maxSpeed, p.vx));
+      
+      // Friction
+      p.vx *= p.onGround ? FRICTION : AIR_FRICTION;
+      
+      // Gravity
+      p.vy += GRAVITY;
+      p.vy = Math.min(MAX_FALL_SPEED, p.vy);
+      
+      // Apply velocity
+      p.x += p.vx;
+      p.y += p.vy;
+      
+      // Platform collision
+      p.onGround = false;
+      game.elements.platforms.forEach(plat => {
+        if (p.x + 40 > plat.x && p.x < plat.x + plat.width) {
+          if (p.y + 40 > plat.y && p.y + 40 < plat.y + plat.height + p.vy + 10 && p.vy >= 0) {
+            p.y = plat.y - 40;
+            p.vy = 0;
+            p.onGround = true;
+            if (!game.keys['Space'] && !game.keys['KeyZ']) p.spinning = false;
+          }
+        }
+      });
+      
+      // Fall off screen
+      if (p.y > 600) {
+        if (game.rings > 0) {
+          scatterRings();
+          game.rings = 0;
+        }
+        p.x = 100;
+        p.y = 300;
+        p.vx = 0;
+        p.vy = 0;
+        game.camera.x = 0;
+        game.combo = 0;
+      }
+      
+      // Speed lines effect
+      speedLines.classList.toggle('active', Math.abs(p.vx) > 6);
+      
+      // Render player
+      playerEl.style.left = `${p.x - game.camera.x}px`;
+      playerEl.style.top = `${p.y - game.camera.y}px`;
+      playerEl.style.transform = `scaleX(${p.facing})`;
+      playerEl.classList.toggle('boosting', p.boosting);
+      playerEl.classList.toggle('spinning', p.spinning);
+    }
+    
+    function checkCollisions() {
+      const p = game.player;
+      const px = p.x + 20;
+      const py = p.y + 20;
+      
+      // Rings
+      game.elements.rings.forEach((r, i) => {
+        if (!r.collected) {
+          const dx = px - (r.x + 12);
+          const dy = py - (r.y + 12);
+          if (Math.sqrt(dx * dx + dy * dy) < 30) {
+            r.collected = true;
+            game.rings++;
+            game.score += 10 * (1 + game.combo * 0.1);
+            createParticles(r.x, r.y, config.ring_color || '#ffd700');
+            const ringEl = document.getElementById(`ring-${i}`);
+            if (ringEl) ringEl.style.display = 'none';
+          }
+        }
+      });
+      
+      // Enemies
+      game.elements.enemies.forEach((e, i) => {
+        if (e.alive) {
+          const dx = px - (e.x + 25);
+          const dy = py - (e.y + 25);
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          
+          if (dist < 45) {
+            // Attack from above or spinning
+            if ((p.vy > 0 && py < e.y) || p.spinning) {
+              e.alive = false;
+              p.vy = -10;
+              game.combo++;
+              game.comboTimer = 120;
+              game.score += 100 * game.combo;
+              createParticles(e.x + 25, e.y + 25, '#ff0066');
+              showCombo();
+              const enemyEl = document.getElementById(`enemy-${i}`);
+              if (enemyEl) enemyEl.style.display = 'none';
+            } else {
+              // Take damage
+              if (game.rings > 0) {
+                scatterRings();
+                game.rings = 0;
+                p.vx = -p.facing * 8;
+                p.vy = -8;
+              } else {
+                gameOver();
+              }
+            }
+          }
+        }
+      });
+      
+      // Springs
+      game.elements.springs.forEach(s => {
+        const dx = px - (s.x + 20);
+        const dy = py - (s.y + 15);
+        if (Math.abs(dx) < 30 && Math.abs(dy) < 25 && p.vy > 0) {
+          p.vy = -20;
+          p.spinning = true;
+          createParticles(s.x + 20, s.y, '#ff6600');
+        }
+      });
+      
+      // Boost pads
+      game.elements.boostPads.forEach(b => {
+        const dx = px - (b.x + 30);
+        const dy = py - (b.y + 10);
+        if (Math.abs(dx) < 40 && Math.abs(dy) < 30) {
+          p.vx = 15 * p.facing;
+          game.boost = 100;
+          createParticles(b.x + 30, b.y, '#00ff88');
+        }
+      });
+      
+      // Update combo timer
+      if (game.comboTimer > 0) {
+        game.comboTimer--;
+        if (game.comboTimer === 0) game.combo = 0;
+      }
+    }
+    
+    function updateEnemies() {
+      game.elements.enemies.forEach((e, i) => {
+        if (e.alive) {
+          e.x += e.vx;
+          
+          // Patrol bounds
+          const startX = 500 + i * 400;
+          if (e.x < startX - 50 || e.x > startX + 50) {
+            e.vx *= -1;
+          }
+          
+          const enemyEl = document.getElementById(`enemy-${i}`);
+          if (enemyEl) {
+            enemyEl.style.left = `${e.x}px`;
+          }
+        }
+      });
+    }
+    
+    function createParticles(x, y, color) {
+      for (let i = 0; i < 8; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        particle.style.left = `${x - game.camera.x + (Math.random() - 0.5) * 30}px`;
+        particle.style.top = `${y - game.camera.y + (Math.random() - 0.5) * 30}px`;
+        particle.style.background = color;
+        container.appendChild(particle);
+        setTimeout(() => particle.remove(), 500);
+      }
+    }
+    
+    function scatterRings() {
+      createParticles(game.player.x + 20, game.player.y + 20, config.ring_color || '#ffd700');
+      createParticles(game.player.x + 20, game.player.y + 20, config.ring_color || '#ffd700');
+    }
+    
+    function showCombo() {
+      comboDisplay.textContent = `${game.combo}x COMBO!`;
+      comboDisplay.classList.remove('active');
+      void comboDisplay.offsetWidth;
+      comboDisplay.classList.add('active');
+    }
+    
+    function updateHUD() {
+      document.getElementById('ringCount').textContent = game.rings;
+      document.getElementById('scoreDisplay').textContent = Math.floor(game.score).toLocaleString();
+      document.getElementById('boostFill').style.width = `${game.boost}%`;
+    }
+    
+    function gameLoop() {
+      if (!game.running) return;
+      
+      updatePlayer();
+      updateCamera();
+      checkCollisions();
+      updateEnemies();
+      updateHUD();
+      
+      // Endless score
+      game.score += Math.abs(game.player.vx) * 0.1;
+      
+      requestAnimationFrame(gameLoop);
+    }
+    
+    function startGame() {
+      game.running = true;
+      game.player = {
+        x: 100, y: 300, vx: 0, vy: 0,
+        onGround: false, boosting: false, spinning: false,
+        spinCharge: 0, facing: 1
+      };
+      game.camera = { x: 0, y: 0 };
+      game.rings = 0;
+      game.score = 0;
+      game.boost = 100;
+      game.combo = 0;
+      game.comboTimer = 0;
+      
+      generateLevel();
+      startScreen.style.display = 'none';
+      gameOverScreen.style.display = 'none';
+      gameLoop();
+    }
+    
+    function gameOver() {
+      game.running = false;
+      document.getElementById('finalScore').textContent = Math.floor(game.score).toLocaleString();
+      document.getElementById('finalRings').textContent = game.rings;
+      gameOverScreen.style.display = 'flex';
+    }
+    
+    // Event listeners
+    document.addEventListener('keydown', e => {
+      game.keys[e.code] = true;
+      if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+        e.preventDefault();
+      }
+    });
+    
+    document.addEventListener('keyup', e => {
+      game.keys[e.code] = false;
+    });
+    
+    document.getElementById('startBtn').addEventListener('click', startGame);
+    document.getElementById('restartBtn').addEventListener('click', startGame);
+    
+    // Initial config apply
+    applyConfig();
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9d51e443274097d2',t:'MTc3MjMwMjM2Mi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
